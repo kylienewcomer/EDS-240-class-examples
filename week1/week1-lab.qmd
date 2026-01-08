@@ -1,0 +1,80 @@
+---
+title: "week1-lab"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(paletteer)
+
+bees <- read_csv(here::here("week1", "data", "stressor.csv"))
+```
+
+
+```{r}
+bees$state <- str_remove_all(bees$state, "[^[:alpha:]]")
+
+bees$stressor <- str_remove_all(bees$stressor, "[^[:alpha:]]")
+```
+
+```{r}
+bees <- clean_names(bees)
+```
+
+```{r}
+bees_clean <- bees %>% 
+  mutate(year = as.factor(year)) %>% 
+  pivot_longer(cols = january_march:october_december, 
+               names_to = "month_range", 
+               values_to = "stress_level") %>% 
+  mutate(quarter = case_when(
+    month_range == "january_march" ~ 1,
+    month_range == "april_june" ~ 2,
+    month_range == "july_september" ~ 3,
+    month_range == "october_december" ~ 4
+  )) %>% 
+  filter(state != "UnitedStates" & state != "OtherStates") %>% 
+  mutate(quarter = as.factor(quarter))
+
+```
+
+```{r}
+bees_clean %>% 
+  filter(stressor == "Pesticides" & state == "Minnesota") %>% 
+  group_by(year, quarter) %>% 
+  summarize(av_stress = mean(stress_level)) %>% 
+  ggplot(aes(year, av_stress, color = quarter)) +
+  geom_line() +
+  geom_point() +
+  theme_light()
+```
+```{r}
+bees_sum <- bees_clean %>% 
+  filter(stressor == "Pesticides" & state == "Minnesota") %>% 
+  group_by(year, quarter) %>% 
+  summarize(av_stress = mean(stress_level, na.rm = TRUE))
+```
+
+```{r}
+ggplot(bees_sum, aes(year, av_stress, color = quarter)) +
+  geom_point() +
+  scale_color_paletteer_d("nationalparkcolors::Arches") +
+  facet_wrap(~quarter) +
+  theme_light() +
+  labs(x = "Year",
+       y = "Average Stress") +
+  theme(legend.position = "none")
+```
+```{r}
+ggplot(bees_sum, aes(quarter, av_stress, color = year)) +
+  geom_point() +
+  scale_color_paletteer_d("PNWColors::Starfish") +
+  facet_wrap(~year) + 
+  theme_light() +
+  labs(x = "Quarter",
+       y = "Average Stress",
+       title = "Average quarterly Pesticide stress on bees in Minnesota") +
+  theme(legend.position = "none")
+```
+
