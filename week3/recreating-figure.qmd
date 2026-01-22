@@ -1,0 +1,101 @@
+---
+title: "recreating-figure"
+format: html
+---
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(tidyverse)
+
+#..........................import data...........................
+drought <- read_csv(here::here("week3", "data", "drought.csv"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            wrangle drought data                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+drought_clean <- drought |>
+  
+  # Pivot table to be in tidy form
+  pivot_longer(cols = None:D4, names_to = "drought_lvl", values_to = "area_pct") |>
+  
+  janitor::clean_names() |>
+  
+  # Rename state abbreviation column
+   rename(state_abb = state_abbreviation) |>
+
+  # select cols of interest & update names for clarity (as needed) ----
+  select(date = valid_start, state_abb, drought_lvl, area_pct) |> 
+
+  # add year, month & day cols using {lubridate} fxns ----
+  # NOTE: this step isn't necessary for our plot, but I'm including as examples of how to extract different date elements from a object of class `Date` using {lubridate} ----
+  mutate(year = year(date),
+         month = month(date, label = TRUE, abbr = TRUE),
+         day = day(date)) |>
+
+  # add drought level conditions names ----
+  mutate(drought_lvl_long = factor(drought_lvl,
+                            levels = c("D4", "D3", "D2", "D1","D0", "None"),
+                            labels = c("(D4) Exceptional", "(D3) Extreme",
+                                       "(D2) Severe", "(D1) Moderate", 
+                                       "(D0) Abnormally Dry", 
+                                       "No Drought"))) |>
+  
+  # reorder cols ----
+  relocate(date, year, month, day, state_abb, drought_lvl, drought_lvl_long, area_pct)
+```
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##       create stacked area plot of CA drought conditions through time     ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  drought_cols <- c(
+  "(D0) Abnormally Dry" = "#ffff00",
+  "(D1) Moderate" = "#fde598",
+  "(D2) Severe" = "#ffc002",
+  "(D3) Extreme" = "#f30302",
+  "(D4) Exceptional" = "#853a04"
+)
+
+
+unique(drought_clean$drought_lvl_long)
+drought_clean |> 
+  
+  # remove drought_lvl "None" & filter for just CA ----
+  filter(drought_lvl != "None",
+         state_abb == "CA") |> 
+  ggplot(aes(date, area_pct, fill = drought_lvl_long)) +
+  geom_area(position = position_stack(reverse = TRUE)) +
+  scale_fill_manual(values = drought_cols) +
+  scale_y_continuous(labels = scales::label_percent(scale = 1),
+                     breaks = seq(0,100, by = 10),
+                     expand = c(0, 0))+
+  scale_x_date(breaks = scales::breaks_pretty(13),
+               limits = as.Date(c("2000-01-01", "2026-12-31")),
+               expand = c(0, 0)) +
+  labs(fill = "",
+       x = "",
+       y = "",
+       title = "Drought area in California") +
+  guides(x = guide_axis(minor.ticks = TRUE)) +
+  theme(legend.position = "bottom",
+        axis.ticks = element_line(color = "#5a9dd6"),
+        axis.line = element_line(color = "#5a9dd6"),
+        # Change major grid lines to a specific color and type
+  panel.grid.major = element_line(color = "#dadada", size = 0.5, linetype = "solid"),
+  # Change minor grid lines (optional)
+  panel.grid.minor = element_line(color = "#dadada", size = 0.5, linetype = "solid"),
+  # Ensure panel background is white
+  panel.background = element_rect(fill = "white", colour = NA),
+  plot.title = element_text(color = "gray40", hjust = 0.5, size = 20)
+)
+  
+  # pipe into ggplot here!
+```
+
